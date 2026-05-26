@@ -6,6 +6,7 @@ import {
   pruneOldDays,
   isoLocalDate,
   defaultState,
+  MAX_NOTIFICATIONS,
 } from "./storage.js";
 import {
   disciplineScore,
@@ -142,6 +143,7 @@ let toastId = 0;
 
 const host = {
   openSheet: false,
+  openInbox: false,
   lastXpGain: 0,
   feedbackSelector: null,
   busy: false,
@@ -301,6 +303,7 @@ function bootstrap() {
     try {
       processAchievements(state);
       checkRankCelebration(state);
+      evaluateNudges(state);
       reconcileAndPersist(state);
       renderToasts();
       render();
@@ -423,6 +426,31 @@ function pushSoftUpgrade(title, body) {
   });
 }
 
+/**
+ * Persist a notification to the inbox (survives reloads). Returns the entry.
+ * @param {{ type?: string; title: string; body?: string; icon?: string }} payload
+ */
+function addNotification({ type = "info", title, body = "", icon = "bell" }) {
+  const entry = {
+    id: crypto.randomUUID?.() ?? `n_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    type,
+    title,
+    body,
+    icon,
+    ts: Date.now(),
+    read: false,
+  };
+  state.notifications.push(entry);
+  if (state.notifications.length > MAX_NOTIFICATIONS) {
+    state.notifications = state.notifications.slice(-MAX_NOTIFICATIONS);
+  }
+  return entry;
+}
+
+function unreadNotificationCount() {
+  return (state.notifications ?? []).filter((n) => !n.read).length;
+}
+
 function processAchievements(st) {
   if (!st.isPro) return;
   const ctx = buildAchievementContext(st);
@@ -446,6 +474,7 @@ function pushAchievementBadge(ach) {
     body: ach.title,
     icon: ach.icon,
   });
+  addNotification({ type: "achievement", title: "Badge unlocked", body: ach.title, icon: ach.icon });
 }
 
 function checkRankCelebration(st) {
@@ -463,8 +492,60 @@ function checkRankCelebration(st) {
       body: "",
       icon: ICON.crown,
     });
+    addNotification({
+      type: "rank",
+      title: `Rank up · ${rank.label}`,
+      body: "New rank reached.",
+      icon: ICON.crown,
+    });
   }
   st.lastCelebratedRankKey = rank.key;
+}
+
+/** Consecutive qualified days ending *yesterday* — the streak today's incompletion would break. */
+function priorStreak(dayQualifiedByDate) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 1);
+  let s = 0;
+  while (dayQualifiedByDate[isoLocalDate(d)]) {
+    s += 1;
+    d.setDate(d.getDate() - 1);
+  }
+  return s;
+}
+
+/**
+ * On-open re-engagement nudges. No backend: evaluated when the app opens or
+ * regains focus. De-duped to once per day per nudge via st.nudgeLog.
+ */
+function evaluateNudges(st) {
+  if (!st.preferences?.notifications) return;
+  const iso = isoLocalDate();
+  if (st.dayQualifiedByDate[iso]) return; // today already complete — nothing to nag
+  const hour = new Date().getHours();
+  st.nudgeLog = st.nudgeLog ?? {};
+
+  const prior = priorStreak(st.dayQualifiedByDate);
+  if (hour >= 18 && prior > 0 && st.nudgeLog.streak !== iso) {
+    addNotification({
+      type: "streak",
+      title: `Your ${prior}-day streak is at risk`,
+      body: "Finish today's quests before midnight to keep it alive.",
+      icon: "flame",
+    });
+    st.nudgeLog.streak = iso;
+    return;
+  }
+  if (hour >= 12 && st.nudgeLog.daily !== iso) {
+    addNotification({
+      type: "reminder",
+      title: "Today's quests aren't done yet",
+      body: "Open your dashboard and complete your habits.",
+      icon: "target",
+    });
+    st.nudgeLog.daily = iso;
+  }
 }
 
 /**
@@ -669,7 +750,11 @@ function pageStrip() {
     streak > 0
       ? `<span class="streak-flame icon-flame-live" aria-hidden="true">${iconHtml("flame", { colorful: true, chip: false, size: ICON_SIZE })}</span>`
       : "";
-  return `<header class="page-strip"><span class="page-strip-brand">LevelUp</span><span class="page-strip-gamify">${gamifyStrip()}<span class="page-strip-streak">${streakFlame}<span class="streak-count">${streak}d</span></span></span></header>`;
+  const unread = unreadNotificationCount();
+  const bellBadge =
+    unread > 0 ? `<span class="inbox-badge" aria-hidden="true">${unread > 9 ? "9+" : unread}</span>` : "";
+  const bell = `<button class="inbox-bell" type="button" data-action="open-inbox" aria-label="Notifications${unread ? ` (${unread} unread)` : ""}">${iconHtml("bell", { size: ICON_SIZE, tone: "inherit" })}${bellBadge}</button>`;
+  return `<header class="page-strip"><span class="page-strip-brand">LevelUp</span><span class="page-strip-gamify">${gamifyStrip()}<span class="page-strip-streak">${streakFlame}<span class="streak-count">${streak}d</span></span>${bell}</span></header>`;
 }
 
 function pageHeader(title) {
@@ -1459,6 +1544,53 @@ function paywallSheet() {
   `;
 }
 
+function relativeTime(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "Just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function notificationRow(n) {
+  const icon = iconHtml(n.icon || "bell", { colorful: true, size: ICON_SIZE });
+  const bodyHtml = n.body ? `<p class="inbox-body muted">${escapeHtml(n.body)}</p>` : "";
+  return `
+    <div class="inbox-item${n.read ? "" : " inbox-item--unread"} inbox-item--${escapeAttr(n.type)}">
+      <span class="inbox-item-icon" aria-hidden="true">${icon}</span>
+      <div class="inbox-item-copy">
+        <strong class="inbox-title">${escapeHtml(n.title)}</strong>
+        ${bodyHtml}
+        <span class="inbox-time muted">${escapeHtml(relativeTime(n.ts))}</span>
+      </div>
+    </div>`;
+}
+
+function inboxSheet() {
+  const items = [...(state.notifications ?? [])].sort((a, b) => b.ts - a.ts);
+  const body = items.length
+    ? `<div class="inbox-list">${items.map(notificationRow).join("")}</div>`
+    : `<div class="inbox-empty muted"><p>No notifications yet.</p><p>Complete quests and unlock badges to see your activity here.</p></div>`;
+  return `
+    <div class="sheet-backdrop" data-action="close-inbox"></div>
+    <div class="sheet sheet--inbox" role="dialog" aria-modal="true" aria-label="Notifications">
+      <div class="sheet-header">
+        <div>
+          <h2 class="sheet-title">Notifications</h2>
+          <p class="muted sheet-lead">Your recent activity and reminders.</p>
+        </div>
+        <button class="btn btn-secondary btn-icon sheet-close" type="button" data-action="close-inbox" aria-label="Close">${iconHtml("x", { size: ICON_SIZE, tone: "inherit" })}</button>
+      </div>
+      ${body}
+      ${items.length ? `<button class="btn btn-secondary btn-block" type="button" data-action="notifications-clear">Clear all</button>` : ""}
+    </div>
+  `;
+}
+
 function ensureDopamineMap(day) {
   state.dopamineRestrictions.forEach((dr) => {
     if (!(dr.id in (day.dopamineById ?? {}))) {
@@ -1857,6 +1989,28 @@ function onActionClick(e) {
   if (action === "onboarding-complete") {
     e.preventDefault();
     finishOnboarding();
+    return;
+  }
+
+  if (action === "open-inbox") {
+    (state.notifications ?? []).forEach((n) => {
+      n.read = true;
+    });
+    host.openInbox = true;
+    saveState(state);
+    render();
+    return;
+  }
+  if (action === "close-inbox") {
+    host.openInbox = false;
+    document.querySelector(".inbox-layer")?.remove();
+    render();
+    return;
+  }
+  if (action === "notifications-clear") {
+    state.notifications = [];
+    saveState(state);
+    render();
     return;
   }
 
@@ -2264,6 +2418,7 @@ function gamifyProgressBlock(dailyPct, rank, rankPct) {
 function render() {
   if (!appEl) return;
   document.querySelector(".paywall-layer")?.remove();
+  document.querySelector(".inbox-layer")?.remove();
 
   const iso = isoLocalDate();
   ensureDay(iso);
@@ -2327,6 +2482,13 @@ function render() {
     attachCommonHandlers(layer);
     attachPaywallInteractions(layer);
   }
+  if (host.openInbox) {
+    const layer = document.createElement("div");
+    layer.className = "inbox-layer";
+    layer.innerHTML = inboxSheet();
+    document.body.appendChild(layer);
+    attachCommonHandlers(layer);
+  }
 
   refreshTicker();
   renderToasts();
@@ -2336,6 +2498,15 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     flushFocusSegment(ensureDay(isoLocalDate()));
     saveState(state);
+  } else if (document.visibilityState === "visible") {
+    try {
+      reconcileAndPersist(state);
+      evaluateNudges(state);
+      saveState(state);
+      render();
+    } catch (err) {
+      console.error("LevelUp nudge check failed:", err);
+    }
   }
 });
 

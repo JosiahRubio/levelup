@@ -6,8 +6,27 @@ export { isoLocalDate };
 
 const STORAGE_KEY = "levelup_v1";
 
+/** Max notifications kept in the inbox; oldest are pruned past this. */
+export const MAX_NOTIFICATIONS = 50;
+
 function uid() {
   return crypto.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizeNotifications(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((n) => n && typeof n === "object")
+    .map((n) => ({
+      id: typeof n.id === "string" && n.id ? n.id : uid(),
+      type: typeof n.type === "string" ? n.type.slice(0, 24) : "info",
+      title: String(n.title ?? "").slice(0, 120),
+      body: String(n.body ?? "").slice(0, 240),
+      icon: typeof n.icon === "string" ? n.icon.slice(0, 32) : "bell",
+      ts: Number.isFinite(n.ts) ? n.ts : Date.now(),
+      read: !!n.read,
+    }))
+    .slice(-MAX_NOTIFICATIONS);
 }
 
 export function defaultState() {
@@ -43,6 +62,8 @@ export function defaultState() {
     achievementUnlockDates: {},
     achievementStats: defaultAchievementStats(),
     achievementNotifiedCount: 0,
+    notifications: [],
+    nudgeLog: {},
     lastCelebratedRankKey: null,
     focusGuideDismissed: false,
     dayQualifiedByDate: {},
@@ -120,6 +141,9 @@ export function migrateState(parsed) {
         : base.achievementUnlockDates,
     achievementStats: normalizeAchievementStats(parsed.achievementStats ?? base.achievementStats),
     achievementNotifiedCount: Math.max(0, Number(parsed.achievementNotifiedCount) || 0),
+    notifications: normalizeNotifications(parsed.notifications),
+    nudgeLog:
+      typeof parsed.nudgeLog === "object" && parsed.nudgeLog !== null ? parsed.nudgeLog : {},
     lastCelebratedRankKey:
       typeof parsed.lastCelebratedRankKey === "string" ? parsed.lastCelebratedRankKey : base.lastCelebratedRankKey,
     focusGuideDismissed: !!(parsed.focusGuideDismissed ?? base.focusGuideDismissed),
