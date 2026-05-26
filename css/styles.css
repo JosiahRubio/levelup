@@ -3273,6 +3273,11 @@ textarea {
   color: var(--text);
 }
 
+/* Toggle OFF = reminders silenced (muted), not gone: dim the bell glyph but keep the badge visible. */
+.inbox-bell--muted .lu-icon {
+  opacity: 0.55;
+}
+
 .inbox-badge {
   position: absolute;
   top: -2px;

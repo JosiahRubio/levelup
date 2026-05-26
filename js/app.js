@@ -751,9 +751,11 @@ function pageStrip() {
       ? `<span class="streak-flame icon-flame-live" aria-hidden="true">${iconHtml("flame", { colorful: true, chip: false, size: ICON_SIZE })}</span>`
       : "";
   const unread = unreadNotificationCount();
+  const muted = !state.preferences?.notifications;
   const bellBadge =
     unread > 0 ? `<span class="inbox-badge" aria-hidden="true">${unread > 9 ? "9+" : unread}</span>` : "";
-  const bell = `<button class="inbox-bell" type="button" data-action="open-inbox" aria-label="Notifications${unread ? ` (${unread} unread)` : ""}">${iconHtml("bell", { size: ICON_SIZE, tone: "inherit" })}${bellBadge}</button>`;
+  const ariaLabel = `Notifications${unread ? ` (${unread} unread)` : ""}${muted ? ", reminders silenced" : ""}`;
+  const bell = `<button class="inbox-bell${muted ? " inbox-bell--muted" : ""}" type="button" data-action="open-inbox" aria-label="${ariaLabel}">${iconHtml(muted ? "bellOff" : "bell", { size: ICON_SIZE, tone: "inherit" })}${bellBadge}</button>`;
   return `<header class="page-strip"><span class="page-strip-brand">LevelUp</span><span class="page-strip-gamify">${gamifyStrip()}<span class="page-strip-streak">${streakFlame}<span class="streak-count">${streak}d</span></span>${bell}</span></header>`;
 }
 
