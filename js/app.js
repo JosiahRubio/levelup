@@ -6,6 +6,7 @@ import {
   pruneOldDays,
   isoLocalDate,
   defaultState,
+  migrateState,
   MAX_NOTIFICATIONS,
 } from "./storage.js";
 import {
@@ -68,11 +69,20 @@ import {
 } from "./onboarding.js";
 import {
   initAppState,
+  initSession,
   hasSession,
   registerNewUser,
+  signInUser,
   signOutAndClearData,
   updateSessionProfile,
 } from "./auth.js";
+import {
+  pullState,
+  schedulePush,
+  flushPendingPush,
+  subscribeToChanges,
+  setIncomingHandler,
+} from "./sync.js";
 import { FREE_PLAN_FEATURES, PRO_PLAN_FEATURES, canStartFreeFocusSession } from "./plans.js";
 import {
   showInlineError,
@@ -151,13 +161,12 @@ const host = {
   recentUnlockKeys: [],
 };
 
-let state = /** @type {AppState} */ (initAppState());
-if (state.lastCelebratedRankKey) {
-  state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
-}
+let state = /** @type {AppState} */ (defaultState());
 let view = "home";
 /** @type {number} */
 let onboardingStep = 0;
+/** @type {"signup" | "signin"} */
+let onboardingMode = "signup";
 let exitingOnboarding = false;
 /** @type {number | null} */
 let ticker = null;
@@ -169,7 +178,7 @@ function renderOnboardingFlow() {
   appEl.replaceChildren();
   appEl.classList.remove("is-loading");
   const wrap = document.createElement("div");
-  wrap.innerHTML = renderOnboarding(onboardingStep);
+  wrap.innerHTML = renderOnboarding(onboardingStep, onboardingMode);
   while (wrap.firstChild) appEl.appendChild(wrap.firstChild);
   attachOnboardingHandlers(appEl);
   attachCommonHandlers(appEl);
@@ -209,6 +218,21 @@ function attachOnboardingHandlers(root) {
       }
       if (action === "onboarding-complete") {
         finishOnboarding();
+        return;
+      }
+      if (action === "onboarding-signin") {
+        finishSignIn();
+        return;
+      }
+      if (action === "onboarding-mode-signin") {
+        onboardingMode = "signin";
+        renderOnboardingFlow();
+        return;
+      }
+      if (action === "onboarding-mode-signup") {
+        onboardingMode = "signup";
+        renderOnboardingFlow();
+        return;
       }
     },
     true
@@ -217,7 +241,8 @@ function attachOnboardingHandlers(root) {
   const onSignupEnter = (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    finishOnboarding();
+    if (onboardingMode === "signin") finishSignIn();
+    else finishOnboarding();
   };
   root.querySelector('[data-bind="onboarding-name"]')?.addEventListener("keydown", onSignupEnter);
   root.querySelector('[data-bind="onboarding-email"]')?.addEventListener("keydown", onSignupEnter);
@@ -274,12 +299,76 @@ async function finishOnboarding() {
       password: passV.value,
     });
     state = result.state;
+    await maybeMigrateLegacyState();
     onboardingStep = 0;
     window.location.replace("/");
   } catch (err) {
     exitingOnboarding = false;
     console.error("LevelUp sign up failed:", err);
-    actionError("Sign up failed", "Please try again.");
+    const msg = err instanceof Error ? err.message : "Please try again.";
+    actionError("Sign up failed", msg);
+  }
+}
+
+async function finishSignIn() {
+  if (exitingOnboarding) return;
+
+  const emailInput = /** @type {HTMLInputElement | null} */ (
+    appEl?.querySelector('[data-bind="onboarding-email"]')
+  );
+  const passwordInput = /** @type {HTMLInputElement | null} */ (
+    appEl?.querySelector('[data-bind="onboarding-password"]')
+  );
+
+  const emailV = validateEmail(emailInput?.value ?? "");
+  if (!emailV.ok) {
+    showInlineError(emailInput, emailV.message);
+    actionError("Sign in", emailV.message);
+    return;
+  }
+  clearInlineError(emailInput);
+
+  const password = passwordInput?.value ?? "";
+  if (!password) {
+    showInlineError(passwordInput, "Enter your password");
+    actionError("Sign in", "Enter your password");
+    return;
+  }
+  clearInlineError(passwordInput);
+
+  exitingOnboarding = true;
+  try {
+    await signInUser({ email: emailV.value, password });
+    onboardingStep = 0;
+    window.location.replace("/");
+  } catch (err) {
+    exitingOnboarding = false;
+    console.error("LevelUp sign in failed:", err);
+    const msg = err instanceof Error ? err.message : "Please try again.";
+    actionError("Sign in failed", msg);
+  }
+}
+
+/**
+ * If the device has old localStorage-only data, push it to the new Supabase
+ * account on first signup so the user doesn't lose progress.
+ */
+async function maybeMigrateLegacyState() {
+  try {
+    const raw = localStorage.getItem("levelup_v1");
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.onboardingComplete) return;
+    if (parsed.userId && parsed.userId === state.userId) return;
+    const migrated = migrateState(parsed);
+    migrated.userId = state.userId;
+    migrated.userEmail = state.userEmail;
+    migrated.displayName = state.displayName;
+    state = migrated;
+    saveState(state);
+    await flushPendingPush();
+  } catch (err) {
+    console.error("Legacy state migration failed:", err);
   }
 }
 
@@ -288,17 +377,40 @@ function shouldShowOnboarding() {
   return true;
 }
 
-function bootstrap() {
+async function bootstrap() {
   if (!appEl) return;
-  applyTheme(state.theme);
+  await initSession();
   if (shouldShowOnboarding()) {
     onboardingStep = 0;
     renderOnboardingFlow();
     return;
   }
+  state = initAppState();
+  if (state.lastCelebratedRankKey) {
+    state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
+  }
+  applyTheme(state.theme);
+  setIncomingHandler((remote) => {
+    state = remote;
+    if (state.lastCelebratedRankKey) {
+      state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
+    }
+    render();
+  });
   recordAppSession(state);
   reconcileAndPersist(state);
   render();
+  pullState().then((remote) => {
+    if (remote) {
+      state = remote;
+      if (state.lastCelebratedRankKey) {
+        state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
+      }
+      reconcileAndPersist(state);
+      render();
+    }
+    subscribeToChanges();
+  });
   queueMicrotask(() => {
     try {
       processAchievements(state);
@@ -2196,25 +2308,20 @@ function onActionClick(e) {
     return;
   }
   if (action === "sign-out") {
-    signOutAndClearData();
-    state = defaultState();
-    applyTheme(state.theme);
-    host.openSheet = false;
-    exitingOnboarding = false;
-    onboardingStep = 0;
-    window.location.replace("/");
+    (async () => {
+      await flushPendingPush();
+      await signOutAndClearData();
+      window.location.replace("/");
+    })();
     return;
   }
   if (action === "delete-account") {
     const ok = window.confirm("Delete your account and remove all LevelUp data from this device? This cannot be undone.");
     if (!ok) return;
-    signOutAndClearData();
-    state = defaultState();
-    applyTheme(state.theme);
-    host.openSheet = false;
-    exitingOnboarding = false;
-    onboardingStep = 0;
-    window.location.replace("/");
+    (async () => {
+      await signOutAndClearData();
+      window.location.replace("/");
+    })();
     return;
   }
   if (action === "theme-preset") {
@@ -2286,14 +2393,10 @@ function onActionClick(e) {
   if (action === "reset-local") {
     const ok = window.confirm("Delete all local LevelUp data on this device?");
     if (!ok) return;
-    signOutAndClearData();
-    state = defaultState();
-    applyTheme(state.theme);
-    view = "home";
-    host.openSheet = false;
-    exitingOnboarding = false;
-    onboardingStep = 0;
-    window.location.replace("/");
+    (async () => {
+      await signOutAndClearData();
+      window.location.replace("/");
+    })();
     return;
   }
 }
@@ -2500,6 +2603,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     flushFocusSegment(ensureDay(isoLocalDate()));
     saveState(state);
+    flushPendingPush();
   } else if (document.visibilityState === "visible") {
     try {
       reconcileAndPersist(state);
@@ -2517,9 +2621,7 @@ window.addEventListener("beforeunload", () => {
   saveState(state);
 });
 
-try {
-  bootstrap();
-} catch (err) {
+bootstrap().catch((err) => {
   console.error("LevelUp failed to start:", err);
   if (appEl) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -2527,4 +2629,4 @@ try {
     appEl.innerHTML = `<div class="card mt-section"><h2 class="screen-title">Could not load</h2><p class="muted">${msg.replace(/</g, "&lt;")}</p></div>`;
     applyTheme(state?.theme);
   }
-}
+});

@@ -93,52 +93,68 @@ const SLIDE_COPY = [
   },
 ];
 
-/** @param {number} step */
-export function renderOnboarding(step) {
+/**
+ * @param {number} step
+ * @param {"signup" | "signin"} [mode]
+ */
+export function renderOnboarding(step, mode = "signup") {
   const total = ONBOARDING_SIGNUP_STEP + 1;
-  const isSignup = step >= ONBOARDING_SIGNUP_STEP;
-  const copy = !isSignup ? (SLIDE_COPY[step] ?? SLIDE_COPY[0]) : null;
+  const isAuth = step >= ONBOARDING_SIGNUP_STEP;
+  const isSignin = isAuth && mode === "signin";
+  const copy = !isAuth ? (SLIDE_COPY[step] ?? SLIDE_COPY[0]) : null;
   const dots = Array.from({ length: total }, (_, i) => {
     const active = i === step;
     return `<span class="onboarding-dot${active ? " onboarding-dot--active" : ""}" aria-hidden="true"></span>`;
   }).join("");
 
-  const preview = isSignup
+  const nameField = !isSignin
+    ? `<label class="field field--flush">
+            <span>Name</span>
+            <input type="text" class="profile-name-input" value="" maxlength="40" data-bind="onboarding-name" placeholder="Your name" aria-label="Your name" autocomplete="name" />
+          </label>`
+    : "";
+  const passwordAutocomplete = isSignin ? "current-password" : "new-password";
+
+  const preview = isAuth
     ? `
       <div class="onboarding-preview onboarding-preview--signup">
         <span class="onboarding-signup-icon" aria-hidden="true">${iconHtml("users", { colorful: true, size: ICON_SIZE_LG, chip: true, chipSize: 56 })}</span>
         <div class="onboarding-signup-fields stack-sm">
-          <label class="field field--flush">
-            <span>Name</span>
-            <input type="text" class="profile-name-input" value="" maxlength="40" data-bind="onboarding-name" placeholder="Your name" aria-label="Your name" autocomplete="name" />
-          </label>
+          ${nameField}
           <label class="field field--flush">
             <span>Email</span>
             <input type="email" class="profile-name-input" value="" maxlength="120" data-bind="onboarding-email" placeholder="you@example.com" aria-label="Email" autocomplete="email" />
           </label>
           <label class="field field--flush">
             <span>Password</span>
-            <input type="password" class="profile-name-input" value="" maxlength="128" data-bind="onboarding-password" placeholder="At least 8 characters" aria-label="Password" autocomplete="new-password" />
+            <input type="password" class="profile-name-input" value="" maxlength="128" data-bind="onboarding-password" placeholder="${isSignin ? "Your password" : "At least 8 characters"}" aria-label="Password" autocomplete="${passwordAutocomplete}" />
           </label>
         </div>
-        <p class="muted onboarding-signup-note">Your account stays on this device until you sign out. Passwords are stored securely as a hash, not plain text.</p>
+        <p class="muted onboarding-signup-note">${isSignin ? "Sign in to sync your progress across devices." : "Your account syncs across devices. Sign in anywhere to pick up where you left off."}</p>
+        <button type="button" class="onboarding-mode-toggle" data-action="${isSignin ? "onboarding-mode-signup" : "onboarding-mode-signin"}">${isSignin ? "Need an account? Sign up" : "Already have an account? Sign in"}</button>
       </div>`
     : previewPanel(step);
 
-  const title = isSignup ? "Create your account" : copy?.title ?? "";
-  const body = isSignup
-    ? "Sign up to save your progress and pick up where you left off on any visit."
-    : copy?.body ?? "";
+  const title = isSignin ? "Welcome back" : isAuth ? "Create your account" : copy?.title ?? "";
+  const body = isSignin
+    ? "Sign in to LevelUp on this device."
+    : isAuth
+      ? "Sign up to save your progress and pick up where you left off on any device."
+      : copy?.body ?? "";
 
   const backBtn =
     step > 0
       ? `<button type="button" class="btn btn-secondary btn-block" data-action="onboarding-back">Back</button>`
       : "";
-  const skipBtn = !isSignup
+  const skipBtn = !isAuth
     ? `<button type="button" class="btn btn-secondary btn-ghost btn-block" data-action="onboarding-skip">Skip Tour</button>`
     : "";
-  const nextLabel = isSignup ? "Sign up" : "Next";
-  const nextAction = isSignup ? "onboarding-complete" : "onboarding-next";
+  const nextLabel = isSignin ? "Sign in" : isAuth ? "Sign up" : "Next";
+  const nextAction = isSignin
+    ? "onboarding-signin"
+    : isAuth
+      ? "onboarding-complete"
+      : "onboarding-next";
 
   return `
     <section class="onboarding" aria-label="Welcome to LevelUp">

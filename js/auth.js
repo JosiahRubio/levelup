@@ -1,146 +1,163 @@
 /**
- * Local session — keeps users signed in until they log out.
- * App data (levelup_v1) is only loaded when a valid session exists.
+ * Auth backed by Supabase. Session lives in supabase-js storage; we cache it
+ * in-memory after `initSession()` so the rest of the app can ask synchronously.
  */
 
-import { defaultState, saveState, loadState, migrateState } from "./storage.js";
+import { supabase } from "./supabase.js";
+import { defaultState, loadState, migrateState } from "./storage.js";
 
-const SESSION_KEY = "levelup_session";
-const STORAGE_KEY = "levelup_v1";
+const STATE_KEY = "levelup_v1";
 
-function uid() {
-  return crypto.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2)}`;
-}
+/** @type {import("https://esm.sh/@supabase/supabase-js@2").Session | null} */
+let cachedSession = null;
 
-/** @typedef {{ userId: string; name: string; email: string; passwordHash: string; createdAt: string }} UserSession */
+let authSubscription = null;
+/** @type {Set<() => void>} */
+const authListeners = new Set();
 
-/** @returns {UserSession | null} */
-export function loadSession() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed.userId !== "string" || !parsed.userId) return null;
-    if (typeof parsed.name !== "string" || typeof parsed.email !== "string") return null;
-    if (typeof parsed.passwordHash !== "string" || !parsed.passwordHash) return null;
-    return {
-      userId: parsed.userId,
-      name: parsed.name.slice(0, 40),
-      email: parsed.email.slice(0, 120),
-      passwordHash: parsed.passwordHash,
-      createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
-    };
-  } catch {
-    return null;
+function notifyAuthChange() {
+  for (const fn of authListeners) {
+    try {
+      fn();
+    } catch (err) {
+      console.error("Auth listener failed:", err);
+    }
   }
 }
 
-/** @param {UserSession} session */
-export function saveSession(session) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+/** Subscribe to sign-in/out events. Returns an unsubscribe fn. */
+export function onAuthChange(fn) {
+  authListeners.add(fn);
+  return () => authListeners.delete(fn);
 }
 
-export function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
+/** Resolve the current Supabase session and start tracking auth state. */
+export async function initSession() {
+  const { data } = await supabase.auth.getSession();
+  cachedSession = data.session ?? null;
+  if (!authSubscription) {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      cachedSession = session ?? null;
+      if (event === "SIGNED_OUT") {
+        try {
+          localStorage.removeItem(STATE_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
+      notifyAuthChange();
+    });
+    authSubscription = sub.subscription;
+  }
+  return cachedSession;
 }
 
 export function hasSession() {
-  return loadSession() !== null;
+  return !!cachedSession;
 }
 
-/** @param {string} password */
-export async function hashPassword(password) {
-  const data = new TextEncoder().encode(password);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+export function currentUserId() {
+  return cachedSession?.user?.id ?? null;
 }
 
-/** @param {UserSession} session */
-function applySessionToState(session, state) {
-  state.userId = session.userId;
-  state.displayName = session.name;
-  state.userEmail = session.email;
+export function currentUserEmail() {
+  return cachedSession?.user?.email ?? null;
+}
+
+function applySessionFields(state) {
+  const u = cachedSession?.user;
+  if (!u) return state;
+  state.userId = u.id;
+  state.userEmail = u.email ?? state.userEmail ?? "";
+  const meta = u.user_metadata ?? {};
+  if (typeof meta.display_name === "string" && meta.display_name) {
+    state.displayName = meta.display_name;
+  }
   state.onboardingComplete = true;
-}
-
-/** One-time: existing installs without a session file. */
-function migrateLegacySession(parsed) {
-  return {
-    userId: typeof parsed.userId === "string" && parsed.userId ? parsed.userId : uid(),
-    name: String(parsed.displayName ?? "").trim().slice(0, 40) || "Member",
-    email: String(parsed.userEmail ?? "").trim().slice(0, 120) || "member@local.app",
-    passwordHash: "legacy-no-password",
-    createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
-  };
+  return state;
 }
 
 /**
- * Load persisted app state only when signed in; otherwise return fresh guest state
- * that is never read from another user's localStorage data.
+ * Synchronous local-cache hydrator used at boot. The server pull happens
+ * separately in sync.js and overwrites this once it lands.
  */
 export function initAppState() {
-  let session = loadSession();
-
-  if (!session) {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.onboardingComplete) {
-          session = migrateLegacySession(parsed);
-          saveSession(session);
-          const state = migrateState(parsed);
-          applySessionToState(session, state);
-          return state;
-        }
-      }
-    } catch {
-      /* guest */
-    }
-    return defaultState();
+  if (!cachedSession) return defaultState();
+  let state;
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    state = raw ? migrateState(JSON.parse(raw)) : defaultState();
+  } catch {
+    state = defaultState();
   }
-
-  const state = loadState();
-  if (state.userId && state.userId !== session.userId) {
-    const fresh = defaultState();
-    applySessionToState(session, fresh);
-    saveState(fresh);
-    return fresh;
+  // If localStorage belongs to a different account, drop it.
+  if (state.userId && state.userId !== cachedSession.user.id) {
+    state = defaultState();
   }
-  applySessionToState(session, state);
-  return state;
+  return applySessionFields(state);
 }
 
 /**
  * @param {{ name: string; email: string; password: string }} creds
  */
 export async function registerNewUser(creds) {
-  const passwordHash = await hashPassword(creds.password);
-  const session = {
-    userId: uid(),
-    name: creds.name,
-    email: creds.email.toLowerCase(),
-    passwordHash,
-    createdAt: new Date().toISOString(),
-  };
-  const state = defaultState();
-  applySessionToState(session, state);
-  saveSession(session);
-  saveState(state);
-  return { session, state };
+  const { data, error } = await supabase.auth.signUp({
+    email: creds.email,
+    password: creds.password,
+    options: { data: { display_name: creds.name } },
+  });
+  if (error) throw error;
+  cachedSession = data.session ?? null;
+  const state = applySessionFields(defaultState());
+  state.displayName = creds.name;
+  state.userEmail = creds.email;
+  return { state, session: cachedSession };
+}
+
+/**
+ * @param {{ email: string; password: string }} creds
+ */
+export async function signInUser(creds) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: creds.email,
+    password: creds.password,
+  });
+  if (error) throw error;
+  cachedSession = data.session;
+  return { session: cachedSession };
 }
 
 /** @param {{ name?: string; email?: string }} patch */
-export function updateSessionProfile(patch) {
-  const session = loadSession();
-  if (!session) return;
-  if (typeof patch.name === "string") session.name = patch.name.trim().slice(0, 40);
-  if (typeof patch.email === "string") session.email = patch.email.trim().toLowerCase().slice(0, 120);
-  saveSession(session);
+export async function updateSessionProfile(patch) {
+  if (!cachedSession?.user) return;
+  /** @type {Record<string, unknown>} */
+  const metaUpdate = {};
+  if (typeof patch.name === "string") {
+    metaUpdate.display_name = patch.name.trim().slice(0, 40);
+  }
+  if (Object.keys(metaUpdate).length) {
+    await supabase.auth.updateUser({ data: metaUpdate });
+    await supabase
+      .from("profiles")
+      .update({ display_name: metaUpdate.display_name })
+      .eq("id", cachedSession.user.id);
+  }
+  if (typeof patch.email === "string") {
+    await supabase.auth.updateUser({ email: patch.email.trim().toLowerCase() });
+  }
 }
 
-/** Wipe session and all app data for a clean start. */
-export function signOutAndClearData() {
-  clearSession();
-  localStorage.removeItem(STORAGE_KEY);
+/** Sign out of Supabase and wipe local app data. */
+export async function signOutAndClearData() {
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.error("Supabase signOut failed:", err);
+  }
+  cachedSession = null;
+  try {
+    localStorage.removeItem(STATE_KEY);
+  } catch {
+    /* ignore */
+  }
 }

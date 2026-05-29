@@ -1,4 +1,4 @@
-const CACHE = 'levelup-v1';
+const CACHE = 'levelup-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -17,6 +17,8 @@ const ASSETS = [
   '/js/plans.js',
   '/js/simple-board.js',
   '/js/storage.js',
+  '/js/supabase.js',
+  '/js/sync.js',
   '/js/theme.js',
   '/js/ui-feedback.js',
   '/js/widgets.js',

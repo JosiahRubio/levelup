@@ -3203,6 +3203,22 @@ textarea {
   max-width: 300px;
 }
 
+.onboarding-mode-toggle {
+  background: transparent;
+  border: none;
+  color: var(--accent-light);
+  font: inherit;
+  font-size: var(--text-size-sm);
+  padding: 8px 4px;
+  margin-top: 4px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.onboarding-mode-toggle:active:not(:disabled) {
+  color: var(--text);
+}
+
 .onboarding-copy {
   padding: 0 4px;
 }

@@ -169,14 +169,29 @@ export function migrateState(parsed) {
   };
 }
 
-/** Only persist app data for signed-in users (see levelup_session). */
+/** @type {Set<(state: object) => void>} */
+const afterSaveListeners = new Set();
+
+/** Subscribe to local saves (used by sync.js to schedule pushes). */
+export function onAfterSave(fn) {
+  afterSaveListeners.add(fn);
+  return () => afterSaveListeners.delete(fn);
+}
+
+/** Persist app data locally (offline cache). Sync layer pushes it to Supabase. */
 export function saveState(state) {
   try {
-    if (!localStorage.getItem("levelup_session")) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    return;
+    /* ignore quota or privacy errors */
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  for (const fn of afterSaveListeners) {
+    try {
+      fn(state);
+    } catch (err) {
+      console.error("onAfterSave listener failed:", err);
+    }
+  }
 }
 
 export function normalizeDayRecord(day) {
