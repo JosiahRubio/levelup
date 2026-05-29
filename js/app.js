@@ -394,6 +394,14 @@ async function bootstrap() {
   }
   applyTheme(state.theme);
   setIncomingHandler((remote) => {
+    // Deep-equal short-circuit: if the incoming state matches what we already
+    // have, don't blow away the DOM (would disrupt focus, animations, an
+    // in-progress click).
+    try {
+      if (JSON.stringify(remote) === JSON.stringify(state)) return;
+    } catch {
+      /* fall through and apply */
+    }
     state = remote;
     if (state.lastCelebratedRankKey) {
       state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);

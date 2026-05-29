@@ -25,6 +25,14 @@ let pushTimer = null;
 let pendingState = null;
 /** Most recent server-side updated_at we've already observed (ours or theirs). */
 let lastSeenUpdatedAt = null;
+/**
+ * Count of in-flight pushes (incremented before upsert, decremented shortly
+ * after settle). Used to suppress realtime echoes of our own writes since the
+ * realtime broadcast can arrive before the upsert HTTP response.
+ */
+let outstandingPushes = 0;
+/** Grace window after a push settles during which echoes are still likely. */
+const ECHO_GRACE_MS = 750;
 /** @type {import("https://esm.sh/@supabase/supabase-js@2").RealtimeChannel | null} */
 let realtimeChannel = null;
 /** @type {((state: object) => void) | null} */
@@ -86,16 +94,25 @@ export function schedulePush(state) {
 async function pushState(state) {
   if (!hasSession()) return;
   const userId = currentUserId();
-  const { data, error } = await supabase
-    .from("app_state")
-    .upsert({ user_id: userId, state }, { onConflict: "user_id" })
-    .select("updated_at")
-    .single();
-  if (error) {
-    console.error("Sync push failed:", error);
-    return;
+  outstandingPushes += 1;
+  try {
+    const { data, error } = await supabase
+      .from("app_state")
+      .upsert({ user_id: userId, state }, { onConflict: "user_id" })
+      .select("updated_at")
+      .single();
+    if (error) {
+      console.error("Sync push failed:", error);
+      return;
+    }
+    if (data?.updated_at) lastSeenUpdatedAt = data.updated_at;
+  } finally {
+    // Hold the suppression open briefly so the broadcast that follows the
+    // HTTP response still counts as our own echo.
+    setTimeout(() => {
+      outstandingPushes = Math.max(0, outstandingPushes - 1);
+    }, ECHO_GRACE_MS);
   }
-  if (data?.updated_at) lastSeenUpdatedAt = data.updated_at;
 }
 
 /** Force any pending debounced push to land now. Use on sign-out / unload. */
@@ -126,7 +143,10 @@ export function subscribeToChanges() {
       (payload) => {
         const next = payload.new;
         if (!next?.state) return;
-        // Skip self-echo: our own upsert returns the same updated_at we cached.
+        // Suppress self-echo: any UPDATE that arrives while we have a push
+        // in-flight (or in the grace window after) is overwhelmingly likely
+        // to be our own write coming back to us.
+        if (outstandingPushes > 0) return;
         if (lastSeenUpdatedAt && next.updated_at <= lastSeenUpdatedAt) return;
         lastSeenUpdatedAt = next.updated_at;
         onIncomingState?.(migrateState(next.state));
