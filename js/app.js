@@ -82,6 +82,7 @@ import {
   flushPendingPush,
   subscribeToChanges,
   setIncomingHandler,
+  enablePush,
 } from "./sync.js";
 import { FREE_PLAN_FEATURES, PRO_PLAN_FEATURES, canStartFreeFocusSession } from "./plans.js";
 import {
@@ -299,6 +300,8 @@ async function finishOnboarding() {
       password: passV.value,
     });
     state = result.state;
+    // Signup creates a fresh server row; safe to push immediately.
+    enablePush();
     await maybeMigrateLegacyState();
     onboardingStep = 0;
     window.location.replace("./");
@@ -400,17 +403,23 @@ async function bootstrap() {
   recordAppSession(state);
   reconcileAndPersist(state);
   render();
-  pullState().then((remote) => {
-    if (remote) {
-      state = remote;
-      if (state.lastCelebratedRankKey) {
-        state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
+  pullState()
+    .then((remote) => {
+      if (remote) {
+        state = remote;
+        if (state.lastCelebratedRankKey) {
+          state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
+        }
+        reconcileAndPersist(state);
+        render();
       }
-      reconcileAndPersist(state);
-      render();
-    }
-    subscribeToChanges();
-  });
+    })
+    .catch((err) => console.error("Initial pull failed:", err))
+    .finally(() => {
+      enablePush();
+      schedulePush(state);
+      subscribeToChanges();
+    });
   queueMicrotask(() => {
     try {
       processAchievements(state);

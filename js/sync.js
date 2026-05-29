@@ -13,6 +13,12 @@ onAfterSave((state) => schedulePush(state));
 
 const PUSH_DEBOUNCE_MS = 500;
 
+/**
+ * Pushes are gated until the initial server pull completes so we don't
+ * accidentally overwrite the server's existing state with a fresh-boot empty
+ * defaultState. Call `enablePush()` once we've reconciled with the server.
+ */
+let allowPush = false;
 /** @type {number | null} */
 let pushTimer = null;
 /** @type {object | null} */
@@ -49,10 +55,25 @@ export async function pullState() {
   return migrateState(obj);
 }
 
+/** Allow pushes (call after the initial pull has reconciled local state). */
+export function enablePush() {
+  allowPush = true;
+  // If anything was queued during the gated window, kick the timer now.
+  if (pendingState && pushTimer == null) {
+    pushTimer = window.setTimeout(async () => {
+      pushTimer = null;
+      const snapshot = pendingState;
+      pendingState = null;
+      if (snapshot) await pushState(snapshot);
+    }, PUSH_DEBOUNCE_MS);
+  }
+}
+
 /** Debounced push: coalesce rapid mutations into one upsert. */
 export function schedulePush(state) {
   if (!hasSession()) return;
   pendingState = state;
+  if (!allowPush) return; // gated until enablePush()
   if (pushTimer != null) return;
   pushTimer = window.setTimeout(async () => {
     pushTimer = null;
