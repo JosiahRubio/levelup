@@ -301,7 +301,7 @@ async function finishOnboarding() {
     state = result.state;
     await maybeMigrateLegacyState();
     onboardingStep = 0;
-    window.location.replace("/");
+    window.location.replace("./");
   } catch (err) {
     exitingOnboarding = false;
     console.error("LevelUp sign up failed:", err);
@@ -340,7 +340,7 @@ async function finishSignIn() {
   try {
     await signInUser({ email: emailV.value, password });
     onboardingStep = 0;
-    window.location.replace("/");
+    window.location.replace("./");
   } catch (err) {
     exitingOnboarding = false;
     console.error("LevelUp sign in failed:", err);
@@ -2311,7 +2311,7 @@ function onActionClick(e) {
     (async () => {
       await flushPendingPush();
       await signOutAndClearData();
-      window.location.replace("/");
+      window.location.replace("./");
     })();
     return;
   }
@@ -2320,7 +2320,7 @@ function onActionClick(e) {
     if (!ok) return;
     (async () => {
       await signOutAndClearData();
-      window.location.replace("/");
+      window.location.replace("./");
     })();
     return;
   }
@@ -2395,7 +2395,7 @@ function onActionClick(e) {
     if (!ok) return;
     (async () => {
       await signOutAndClearData();
-      window.location.replace("/");
+      window.location.replace("./");
     })();
     return;
   }
