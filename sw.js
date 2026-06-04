@@ -1,4 +1,4 @@
-const CACHE = 'levelup-v5';
+const CACHE = 'levelup-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -43,12 +43,15 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // Cache API only supports http(s); skip chrome-extension, data, blob, etc.
+  const url = e.request.url;
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return;
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(res => {
         if (res.ok) {
           const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
         }
         return res;
       }).catch(() => cached);
