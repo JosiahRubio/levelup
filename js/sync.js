@@ -143,10 +143,10 @@ export function subscribeToChanges() {
       (payload) => {
         const next = payload.new;
         if (!next?.state) return;
-        // Suppress self-echo: any UPDATE that arrives while we have a push
-        // in-flight (or in the grace window after) is overwhelmingly likely
-        // to be our own write coming back to us.
-        if (outstandingPushes > 0) return;
+        // Suppress self-echo: skip during our own push in-flight, its grace
+        // window after, AND while we have unpushed local edits queued
+        // (the debounce window before the timer fires).
+        if (outstandingPushes > 0 || pendingState != null) return;
         if (lastSeenUpdatedAt && next.updated_at <= lastSeenUpdatedAt) return;
         lastSeenUpdatedAt = next.updated_at;
         onIncomingState?.(migrateState(next.state));

@@ -2622,14 +2622,23 @@ document.addEventListener("visibilitychange", () => {
     saveState(state);
     flushPendingPush();
   } else if (document.visibilityState === "visible") {
-    try {
-      reconcileAndPersist(state);
-      evaluateNudges(state);
-      saveState(state);
-      render();
-    } catch (err) {
-      console.error("LevelUp nudge check failed:", err);
-    }
+    // Pull latest from server before reconciling, so a stale local snapshot
+    // doesn't overwrite another device's recent edits.
+    pullState()
+      .then((remote) => {
+        if (remote) {
+          state = remote;
+          if (state.lastCelebratedRankKey) {
+            state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
+          }
+        }
+        reconcileAndPersist(state);
+        evaluateNudges(state);
+        render();
+      })
+      .catch((err) => {
+        console.error("LevelUp visibility refresh failed:", err);
+      });
   }
 });
 
