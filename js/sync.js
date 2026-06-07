@@ -32,7 +32,7 @@ let lastSeenUpdatedAt = null;
  */
 let outstandingPushes = 0;
 /** Grace window after a push settles during which echoes are still likely. */
-const ECHO_GRACE_MS = 750;
+const ECHO_GRACE_MS = 1500;
 /** @type {import("https://esm.sh/@supabase/supabase-js@2").RealtimeChannel | null} */
 let realtimeChannel = null;
 /** @type {((state: object) => void) | null} */

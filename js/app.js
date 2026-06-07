@@ -2622,8 +2622,10 @@ document.addEventListener("visibilitychange", () => {
     saveState(state);
     flushPendingPush();
   } else if (document.visibilityState === "visible") {
-    // Pull latest from server before reconciling, so a stale local snapshot
-    // doesn't overwrite another device's recent edits.
+    // Pull latest and render — do NOT reconcile or save here. Reconciling
+    // mutates state and triggers a push, which races with the other device's
+    // in-flight writes and can overwrite their just-toggled value. Let the
+    // next real user action push.
     pullState()
       .then((remote) => {
         if (remote) {
@@ -2632,8 +2634,6 @@ document.addEventListener("visibilitychange", () => {
             state.lastCelebratedRankKey = migrateRankKey(state.lastCelebratedRankKey);
           }
         }
-        reconcileAndPersist(state);
-        evaluateNudges(state);
         render();
       })
       .catch((err) => {
