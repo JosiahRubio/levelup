@@ -394,6 +394,11 @@ async function bootstrap() {
   }
   applyTheme(state.theme);
   setIncomingHandler((remote) => {
+    // Drop incoming while a local commit is mid-flight (its busy window):
+    // the click handler has already mutated state directly but commit hasn't
+    // yet saved+pushed, so applying remote here would overwrite the just-made
+    // local tap before it ever leaves this device.
+    if (host.busy) return;
     // Deep-equal short-circuit: if the incoming state matches what we already
     // have, don't blow away the DOM (would disrupt focus, animations, an
     // in-progress click).
