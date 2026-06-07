@@ -2420,8 +2420,15 @@ function onActionClick(e) {
 
 
 /** @param {(st: AppState) => void} mutator @param {{ feedbackSelector?: string | null; toast?: { type?: string; title: string; body?: string; icon?: string }; onDone?: () => void }} [opts] */
+/** Mutations queued during an in-flight commit; applied in the same finish. */
+const queuedMutations = [];
+
 function commit(mutator, opts = {}) {
-  if (host.busy) return;
+  if (host.busy) {
+    // Don't drop rapid taps — queue them so they all land in the current finish.
+    queuedMutations.push({ mutator, opts });
+    return;
+  }
   setBusy(true);
   const xpBefore = state.xpTotal ?? 0;
   host.feedbackSelector = opts.feedbackSelector ?? null;
@@ -2430,6 +2437,16 @@ function commit(mutator, opts = {}) {
   const finish = () => {
     try {
       mutator(state);
+      const queuedDoneCallbacks = [];
+      while (queuedMutations.length > 0) {
+        const queued = queuedMutations.shift();
+        try {
+          queued.mutator(state);
+        } catch (err) {
+          console.error("Queued mutator failed:", err);
+        }
+        if (queued.opts?.onDone) queuedDoneCallbacks.push(queued.opts.onDone);
+      }
       const iso = isoLocalDate();
       reconcileTodayQualification(state);
       syncChallengeXp(state, iso);
@@ -2445,6 +2462,13 @@ function commit(mutator, opts = {}) {
       runGamifyFeedback();
       if (opts.toast) pushToast(opts.toast);
       opts.onDone?.();
+      for (const cb of queuedDoneCallbacks) {
+        try {
+          cb();
+        } catch (err) {
+          console.error("Queued onDone failed:", err);
+        }
+      }
     } catch (err) {
       setBusy(false);
       render();
