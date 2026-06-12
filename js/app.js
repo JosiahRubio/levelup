@@ -810,12 +810,10 @@ function nestedBackNav() {
 function navButton(key, label, showBadge = false) {
   const active = tabForView(view) === key;
   return elt(`
-    <button type="button" class="nav-tab" data-nav="${key}" data-active="${active}" aria-current="${active ? "page" : "false"}" aria-label="${label}">
-      <span class="nav-icon-wrap">
-        <span class="nav-icon-svg">${navTabIcon(key, active)}</span>
-        ${showBadge ? `<span class="nav-badge-dot" aria-label="New badge"></span>` : ""}
-      </span>
-      <span class="nav-label">${label}</span>
+    <button type="button" class="apex-nav-btn" data-nav="${key}" aria-current="${active ? "page" : "false"}" aria-label="${label}">
+      <span class="apex-nav-btn-icon">${navTabIcon(key, active)}</span>
+      <span class="apex-nav-btn-label">${label}</span>
+      ${showBadge ? `<span class="nav-badge-dot" aria-label="New badge"></span>` : ""}
     </button>
   `);
 }
@@ -880,21 +878,135 @@ function skeletonPlaceholder(count = 3, kind = "row") {
 
 function pageStrip() {
   const streak = streakCount(state.dayQualifiedByDate);
-  const streakFlame =
-    streak > 0
-      ? `<span class="streak-flame icon-flame-live" aria-hidden="true">${iconHtml("flame", { colorful: true, chip: false, size: ICON_SIZE })}</span>`
-      : "";
+  const today = new Date();
+  const dayLabel = today
+    .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    .toUpperCase();
   const unread = unreadNotificationCount();
   const muted = !state.preferences?.notifications;
   const bellBadge =
     unread > 0 ? `<span class="inbox-badge" aria-hidden="true">${unread > 9 ? "9+" : unread}</span>` : "";
   const ariaLabel = `Notifications${unread ? ` (${unread} unread)` : ""}${muted ? ", reminders silenced" : ""}`;
-  const bell = `<button class="inbox-bell${muted ? " inbox-bell--muted" : ""}" type="button" data-action="open-inbox" aria-label="${ariaLabel}">${iconHtml(muted ? "bellOff" : "bell", { size: ICON_SIZE, tone: "inherit" })}${bellBadge}</button>`;
-  return `<header class="page-strip"><span class="page-strip-brand">LevelUp</span><span class="page-strip-gamify">${gamifyStrip()}<span class="page-strip-streak">${streakFlame}<span class="streak-count">${streak}d</span></span>${bell}</span></header>`;
+  const streakChip =
+    streak > 0
+      ? `<span class="apex-streak-chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 4 4 5 4 9a4 4 0 1 1-8 0c0-2 1-3 1-5 0 0 2 1 3 4 0-3 0-5 0-8Z"/></svg>${streak}</span>`
+      : "";
+  return `<header class="apex-strip">
+    <span class="apex-brand">
+      <span class="apex-brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+      <span class="apex-brand-text">
+        <span class="apex-brand-name">LevelUp</span>
+        <span class="apex-brand-day">${escapeHtml(dayLabel)}</span>
+      </span>
+    </span>
+    <span class="apex-strip-right">
+      ${streakChip}
+      <button class="inbox-bell${muted ? " inbox-bell--muted" : ""}" type="button" data-action="open-inbox" aria-label="${ariaLabel}">${iconHtml(muted ? "bellOff" : "bell", { size: 17, tone: "inherit" })}${bellBadge}</button>
+    </span>
+  </header>`;
 }
 
-function pageHeader(title) {
-  return `<header class="page-header"><h1 class="screen-title">${escapeHtml(title)}</h1></header>`;
+function pageHeader(title, lead = "") {
+  const leadHtml = lead ? `<p class="apex-heading-lead">${escapeHtml(lead)}</p>` : "";
+  return `<header class="apex-heading"><h1>${escapeHtml(title)}</h1>${leadHtml}</header>`;
+}
+
+/* ── Apex helpers ────────────────────────────────────────── */
+
+/** Apex section label with optional right-side action link. */
+function apexLabel(text, opts = {}) {
+  const action = opts.actionLabel
+    ? `<button type="button" class="apex-section-link" ${opts.actionAttr ?? ""}>${escapeHtml(opts.actionLabel)}</button>`
+    : "";
+  return `<div class="apex-section-label"><span class="apex-section-label-text">${escapeHtml(text)}</span>${action}</div>`;
+}
+
+/** Apex card shell. */
+function apexCard(inner, padded = false) {
+  return `<div class="apex-card${padded ? " apex-card--padded" : ""}">${inner}</div>`;
+}
+
+/** SVG discipline ring. size in px, pct 0..100. */
+function disciplineRing(pct, size = 148, stroke = 12, label = "today") {
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const safe = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  const dash = (safe / 100) * C;
+  return `<div class="apex-ring${size <= 160 ? " apex-ring--medium" : ""}" style="width:${size}px;height:${size}px">
+    <svg class="apex-ring-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <defs>
+        <linearGradient id="apexRingG-${size}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="var(--accent-strong)"/>
+          <stop offset="100%" stop-color="var(--accent)"/>
+        </linearGradient>
+      </defs>
+      <circle class="apex-ring-track" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"/>
+      <circle class="apex-ring-progress" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="url(#apexRingG-${size})" stroke-width="${stroke}" stroke-dasharray="${dash} ${C}"/>
+    </svg>
+    <div class="apex-ring-center">
+      <div class="apex-ring-pct">${safe}<span class="apex-ring-pct-small">%</span></div>
+      <div class="apex-ring-label">${escapeHtml(label)}</div>
+    </div>
+  </div>`;
+}
+
+/** Apex stat tile for the 4-col quick stats row. */
+function apexStat(value, label, opts = {}) {
+  const sub = opts.sub ? `<span class="apex-stat-sub">${escapeHtml(opts.sub)}</span>` : "";
+  const cls = opts.ok ? " apex-stat-value--ok" : "";
+  return `<div class="apex-stat-tile">
+    <span class="apex-stat-value${cls}">${escapeHtml(String(value))}</span>
+    ${sub}
+    <span class="apex-stat-label">${escapeHtml(label)}</span>
+  </div>`;
+}
+
+/**
+ * Apex checklist row.
+ * @param {{title:string, sub?:string, done?:boolean, reward?:string, iconHtml?:string, compact?:boolean, bind?:string, action?:string, dataAttrs?:string}} o
+ */
+function apexCheckRow(o) {
+  const done = !!o.done;
+  const icon = done
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>`
+    : o.iconHtml || `<span style="width:6px;height:6px;border-radius:99px;background:currentColor;opacity:0.4"></span>`;
+  const sub = o.sub ? `<span class="apex-check-sub">${escapeHtml(o.sub)}</span>` : "";
+  const reward = o.reward
+    ? `<span class="apex-check-reward">${escapeHtml(o.reward)}</span>`
+    : "";
+  const inputAttrs = o.bind
+    ? `data-bind="${escapeAttr(o.bind)}"`
+    : o.dataAttrs || "";
+  const actionAttr = o.action ? `data-action="${escapeAttr(o.action)}"` : "";
+  const tag = o.bind || o.dataAttrs?.includes("data-habit") ? "label" : "button";
+  const open =
+    tag === "label"
+      ? `<label class="apex-check-row${done ? " is-done" : ""}${o.compact ? " apex-check-row--compact" : ""}">`
+      : `<button type="button" class="apex-check-row${done ? " is-done" : ""}${o.compact ? " apex-check-row--compact" : ""}" ${actionAttr}>`;
+  const close = tag === "label" ? "</label>" : "</button>";
+  const checkbox =
+    o.bind || o.dataAttrs
+      ? `<input type="checkbox" ${done ? "checked" : ""} ${inputAttrs} style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" />`
+      : "";
+  return `${open}
+    ${checkbox}
+    <span class="apex-check-icon">${icon}</span>
+    <span class="apex-check-main">
+      <span class="apex-check-title">${escapeHtml(o.title)}</span>
+      ${sub}
+    </span>
+    ${reward}
+  ${close}`;
+}
+
+/** Apex layout shell: page strip + heading + body wrapped in screen padding. */
+function apexLayout({ title, lead = "", body }) {
+  return `
+    <div style="padding:0 18px;">
+      ${pageStrip()}
+      ${pageHeader(title, lead)}
+      <div class="apex-screen">${body}</div>
+    </div>`;
 }
 
 /** @param {string} label @param {string} bodyHtml */
@@ -1016,29 +1128,50 @@ function challengesView() {
   const iso = isoLocalDate();
   const done = todayChallengesDone(state, iso);
   const qs = Array.isArray(state.quests) ? state.quests : [];
-  const rows = qs
+
+  const dailyRows = getDailyChallenges(iso)
+    .map((ch) => {
+      const isDone = isChallengeDone(state, iso, ch.dayKey);
+      return `<button type="button" class="apex-check-row${isDone ? " is-done" : ""}" data-action="challenge-toggle" data-challenge-key="${escapeAttr(ch.dayKey)}">
+        <span class="apex-check-icon">${isDone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14 21 7V3h-4l-7 7M6 18l3-3M14 14l4 4 2-2-4-4M10 10 6 6 4 8l4 4"/></svg>'}</span>
+        <span class="apex-check-main"><span class="apex-check-title">${escapeHtml(ch.text)}</span></span>
+        <span class="apex-check-reward">+${ch.xp} XP</span>
+      </button>`;
+    })
+    .join("");
+  const dailyCard = `<div class="apex-card">${dailyRows}</div>`;
+
+  const sideRows = qs
     .map(
-      (q) => `
-      <button type="button" class="app-list-row quest-row" data-action="quest-complete" data-quest-id="${escapeAttr(q.id)}" data-feedback-row ${q.done ? "disabled" : ""}>
-        <span class="app-list-row-title">${escapeHtml(q.text)}</span>
-        <span class="quest-meta${q.done ? " quest-meta--done" : ""}">${q.done ? `${iconHtml("check", { filled: true, tone: "success", size: ICON_SIZE })}<span>Complete</span>` : `+${QUEST_XP} XP`}</span>
-      </button>`
+      (q) => `<button type="button" class="apex-check-row${q.done ? " is-done" : ""}" data-action="quest-complete" data-quest-id="${escapeAttr(q.id)}" ${q.done ? "disabled" : ""}>
+      <span class="apex-check-icon">${q.done ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<span style="width:6px;height:6px;border-radius:99px;background:currentColor;opacity:0.4"></span>'}</span>
+      <span class="apex-check-main"><span class="apex-check-title">${escapeHtml(q.text)}</span></span>
+      <span class="apex-check-reward">+${QUEST_XP} XP</span>
+    </button>`
     )
     .join("");
 
-  const sideQuestsCard = listCard(qs.length ? rows : `<div class="app-list-pad">${skeletonPlaceholder(2, "row")}</div>`);
+  const sideCard = qs.length
+    ? `<div class="apex-card">${sideRows}</div>`
+    : `<div class="apex-card apex-card--padded" style="text-align:center;color:var(--muted);font-size:13px">No side quests yet. Add one below to earn <b style="color:var(--text)">+${QUEST_XP} XP</b> per win.</div>`;
 
-  return screenLayout({
+  const addRow = `<div class="apex-input-row">
+    <input type="text" data-bind="quest-input" maxlength="120" placeholder="Add a side quest…" aria-label="New side quest" />
+    <button type="button" class="apex-btn" data-action="quest-add" style="padding:0 16px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Add
+    </button>
+  </div>`;
+
+  return apexLayout({
     title: "Quests",
-    purpose: "Complete daily quests and track your own side quests.",
+    lead: "Three daily quests. Plus whatever you put on yourself.",
     body: `
-      ${screenGroup(`Today's quests · ${done}/3`, dailyChallengesCard(iso))}
-      ${screenGroup("Side quests", sideQuestsCard)}`,
-    footer: `
-      <div class="row row--form row--form-footer">
-        <input type="text" class="input-grow" data-bind="quest-input" maxlength="120" placeholder="Add a side quest" aria-label="New side quest" />
-        <button type="button" class="btn btn-primary btn-with-icon" data-action="quest-add"><span class="btn-icon-wrap" aria-hidden="true">${iconHtml("plus", { size: ICON_SIZE, tone: "inherit" })}</span><span>Add quest</span></button>
-      </div>`,
+      ${apexLabel(`Today · ${done}/3`)}
+      ${dailyCard}
+      ${apexLabel("Side quests")}
+      ${sideCard}
+      ${addRow}`,
   });
 }
 
@@ -1228,73 +1361,201 @@ function dashboard() {
   reconcileTodayQualification(state);
   const rEff = dopamineEffectiveCount();
   const discs = disciplineScore(day, rEff);
-  const dailyPct = dailyProgressPercent(state, iso, rEff);
-  const focusLive = fmtTime(liveFocusSeconds(day));
-  const focusLabel = day.focusRunning
-    ? `Focus in progress · ${focusLive}`
-    : `No active session · ${fmtTime(day.focusTargetSec)} goal`;
+  const streak = streakCount(state.dayQualifiedByDate ?? {});
+  const xpToday = xpEarnedToday(state, iso);
+  const questsDone = todayChallengesDone(state, iso);
+  const rank = rankFromXp(state.xpTotal);
+  const rankPct = rankProgressPercent(state.xpTotal ?? 0, rank);
+  const focusMin = Math.round(liveFocusSeconds(day) / 60);
+  const focusGoalMin = Math.round(day.focusTargetSec / 60);
+  const focusDone = liveFocusSeconds(day) >= day.focusTargetSec;
+  const greetName = displayNameForGreeting();
+  const period = greetingPeriod();
 
-  return screenLayout({
-    title: "Home",
-    purpose: "Today’s progress and what’s left to do.",
-    body: `
-      ${screenGroup("Overview", dashboardGreetingBlock(iso, discs, dailyPct))}
-      ${screenGroup("At a glance", dashboardWidgetsSection(iso))}
-      ${screenGroup("Daily checklist", dashboardDailyChecklist(day))}`,
-    footer: `
-      <p class="screen-footer-hint muted">${escapeHtml(focusLabel)}</p>
-      <button type="button" class="btn ${day.focusRunning ? "btn-secondary" : "btn-primary"} btn-block" data-nav-jump="discipline">${day.focusRunning ? "Continue focus session" : "Start focus session"}</button>`,
-  });
+  // Hero card: discipline ring + streak + rank progress
+  const heroCard = `
+    <div class="apex-card apex-hero">
+      <div class="apex-hero-left">
+        <div>
+          <span class="apex-section-label-text" style="display:block">Streak</span>
+          <div class="apex-streak-display">${streak}<span class="apex-streak-flame"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 4 4 5 4 9a4 4 0 1 1-8 0c0-2 1-3 1-5 0 0 2 1 3 4 0-3 0-5 0-8Z"/></svg></span></div>
+          <div class="apex-streak-sub">days locked in</div>
+        </div>
+        <div>
+          <div class="apex-xp-row">
+            <span class="apex-xp-rank">${escapeHtml(rank.label)}</span>
+            <span class="apex-xp-numbers">${state.xpTotal.toLocaleString()}${rank.nextAt ? ` / ${rank.nextAt.toLocaleString()}` : " XP"}</span>
+          </div>
+          <div class="apex-xp-track"><div class="apex-xp-fill" style="width:${rankPct}%"></div></div>
+        </div>
+      </div>
+      ${disciplineRing(discs, 148, 12, "today")}
+    </div>`;
+
+  // Quick stats: XP today, Quests, Focus min, Train
+  const statsRow = `<div class="apex-stat-grid">
+    ${apexStat(xpToday, "Earned", { sub: `/${DAILY_XP_GOAL} xp` })}
+    ${apexStat(`${questsDone}/3`, "Quests")}
+    ${apexStat(`${focusMin}m`, "Focus")}
+    ${apexStat(day.workoutComplete ? "✓" : "—", "Train", { ok: day.workoutComplete })}
+  </div>`;
+
+  // Today's missions checklist (workout + 3 habits + focus)
+  const habitLabels = state.habitLabels;
+  const missionRows = `
+    <label class="apex-check-row${day.workoutComplete ? " is-done" : ""}">
+      <input id="wq" type="checkbox" ${day.workoutComplete ? "checked" : ""} data-bind="toggle-workout" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" />
+      <span class="apex-check-icon">${day.workoutComplete ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>'}</span>
+      <span class="apex-check-main"><span class="apex-check-title">Workout complete</span><span class="apex-check-sub">Push · 5 lifts</span></span>
+      <span class="apex-check-reward">+10 XP</span>
+    </label>
+    ${habitLabels
+      .map(
+        (lbl, idx) => `
+      <label class="apex-check-row${day.habits[idx] ? " is-done" : ""}">
+        <input id="hb-${idx}" type="checkbox" data-habit="${idx}" ${day.habits[idx] ? "checked" : ""} style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" />
+        <span class="apex-check-icon">${day.habits[idx] ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<span style="width:6px;height:6px;border-radius:99px;background:currentColor;opacity:0.4"></span>'}</span>
+        <span class="apex-check-main"><span class="apex-check-title">${escapeHtml(lbl)}</span><span class="apex-check-sub">Daily habit</span></span>
+        <span class="apex-check-reward">+5 XP</span>
+      </label>`
+      )
+      .join("")}
+    <button type="button" class="apex-check-row${focusDone ? " is-done" : ""}" data-nav-jump="discipline">
+      <span class="apex-check-icon">${focusDone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>'}</span>
+      <span class="apex-check-main"><span class="apex-check-title">Focus ${focusGoalMin} min</span><span class="apex-check-sub">${focusMin}m / ${focusGoalMin}m</span></span>
+      <span class="apex-check-reward">+15 XP</span>
+    </button>`;
+  const missionsCard = `<div class="apex-card">${missionRows}</div>`;
+
+  // Daily quests preview
+  const dailyChs = getDailyChallenges(iso);
+  const questRows = dailyChs
+    .map(
+      (ch) => `
+      <button type="button" class="apex-check-row${isChallengeDone(state, iso, ch.dayKey) ? " is-done" : ""}" data-action="challenge-toggle" data-challenge-key="${escapeAttr(ch.dayKey)}">
+        <span class="apex-check-icon">${isChallengeDone(state, iso, ch.dayKey) ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<span style="width:6px;height:6px;border-radius:99px;background:currentColor;opacity:0.4"></span>'}</span>
+        <span class="apex-check-main"><span class="apex-check-title">${escapeHtml(ch.text)}</span></span>
+        <span class="apex-check-reward">+${ch.xp} XP</span>
+      </button>`
+    )
+    .join("");
+  const questsCard = `<div class="apex-card">${questRows}</div>`;
+
+  return `
+    <div style="padding:0 18px;">
+      ${pageStrip()}
+      <div style="padding-top:6px;">
+        <div class="apex-greeting-hello">${escapeHtml(period)},</div>
+        <h1 class="apex-greeting-name">${escapeHtml(greetName)}.</h1>
+      </div>
+      <div class="apex-screen">
+        ${heroCard}
+        ${statsRow}
+        ${apexLabel("Today's missions")}
+        ${missionsCard}
+        ${apexLabel(`Daily quests · ${questsDone}/3`, { actionLabel: "See all", actionAttr: 'data-nav-jump="challenges"' })}
+        ${questsCard}
+      </div>
+    </div>`;
 }
 
 function trainView() {
   const iso = isoLocalDate();
   const day = ensureDay(iso);
+  const liftsDone = day.exercises.filter(
+    (ex) => Number(ex.reps) > 0 && Number(ex.weight) > 0
+  ).length;
+  const programLabel = state.physiqueGoal === "bulk"
+    ? "Bulk · 5 lifts"
+    : state.physiqueGoal === "recomp"
+      ? "Recomp · 5 lifts"
+      : "Push · 5 lifts";
+
+  // Today's session hero
+  const sessionHero = `
+    <div class="apex-card apex-train-hero">
+      <div>
+        <div class="apex-train-label">Today's session</div>
+        <div class="apex-train-title">${escapeHtml(programLabel)}</div>
+        <div class="apex-train-meta">
+          <b>${liftsDone}/${day.exercises.length}</b> done · Week ${state.programWeek}
+        </div>
+      </div>
+      <button type="button" class="apex-btn" data-action="physique-${state.physiqueGoal}" style="padding:10px 16px;font-size:13px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7Z"/></svg>
+        Start
+      </button>
+    </div>`;
+
+  // Physique chips
   const goalChips = [
     { key: "lean", label: "Lean" },
     { key: "recomp", label: "Recomp" },
     { key: "bulk", label: "Bulk" },
   ];
+  const chipsRow = `<div class="apex-card apex-card--padded">
+    <div style="display:flex;gap:8px">
+      ${goalChips.map((g) => `<button type="button" class="apex-btn ${state.physiqueGoal === g.key ? "" : "apex-btn--ghost"}" data-action="physique-${g.key}" style="flex:1;justify-content:center;padding:10px 8px;font-size:13px">${g.label}</button>`).join("")}
+    </div>
+  </div>`;
 
-  const goalCard = `
-    <div class="card card--primary">
-      ${
-        state.isPro
-          ? `<label class="field">
-        <span>Program week</span>
-        <input type="number" min="1" max="12" step="1" value="${escapeAttr(String(state.programWeek))}" data-bind="program-week-range" aria-label="Program week" />
-      </label>`
-          : ""
-      }
-      <div class="chip-bar" role="radiogroup" aria-label="Physique goal">
-        ${goalChips
-          .map(
-            (g) => `
-            <button type="button" class="btn btn-chip" data-action="physique-${g.key}" data-selected="${state.physiqueGoal === g.key}">${g.label}</button>`
-          )
-          .join("")}
-      </div>
-    </div>`;
+  // Lifts list
+  const liftRows = day.exercises
+    .map((ex, i) => {
+      const idx = escapeAttr(String(i));
+      const done = Number(ex.reps) > 0 && Number(ex.weight) > 0;
+      const dis = !state.isPro && state.physiqueGoal !== "lean" ? "disabled" : "";
+      return `<div class="apex-check-row${done ? " is-done" : ""}" style="cursor:default">
+        <span class="apex-check-icon">${done ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>'}</span>
+        <span class="apex-check-main">
+          ${state.isPro
+            ? `<input type="text" value="${escapeHtml(ex.name ?? "")}" data-ex-part="name" data-ex="${idx}" style="background:transparent;border:none;color:var(--text);font:inherit;outline:none;font-weight:500;width:100%" />`
+            : `<span class="apex-check-title">${escapeHtml(ex.name ?? "")}</span>`}
+        </span>
+        <span style="display:inline-flex;gap:6px;align-items:center;font-family:var(--font-mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums">
+          <input ${dis} type="number" step="0.25" min="0" inputmode="decimal" value="${Number(ex.weight) !== 0 ? ex.weight : ""}" data-ex-part="kg" data-ex="${idx}" placeholder="kg" style="width:56px;height:32px;border-radius:8px;background:var(--surface-inset);border:1px solid var(--border);color:var(--text);text-align:center;font:inherit;outline:none" />
+          <span>·</span>
+          <input ${dis} type="number" min="1" max="100" step="1" value="${Number(ex.reps) !== 0 ? ex.reps : ""}" data-ex-part="reps" data-ex="${idx}" placeholder="reps" style="width:48px;height:32px;border-radius:8px;background:var(--surface-inset);border:1px solid var(--border);color:var(--text);text-align:center;font:inherit;outline:none" />
+        </span>
+      </div>`;
+    })
+    .join("");
+  const liftsCard = `<div class="apex-card">${liftRows}</div>`;
 
-  const liftsCard = `
-    <div class="card card--primary">
-      <table class="table table--spaced" aria-label="Today's lifts">
-        <thead><tr><th>Lift</th><th>KG</th><th>Reps</th>${state.isPro ? "<th>Sets</th>" : ""}</tr></thead>
-        <tbody>
-          ${day.exercises.map((ex, i) => lockedRow(ex, i, !state.isPro)).join("")}
-        </tbody>
-      </table>
-    </div>`;
+  // Week activity (mock: use disciplineSnapshot per day if present)
+  const weekIso = weekDatesFrom(isoWeekMonday(iso));
+  const weekVals = weekIso.map((d) => {
+    const dd = state.dailyByDate?.[d];
+    return Math.max(0, Math.min(100, Number(dd?.disciplineSnapshot) || 0));
+  });
+  const weekBars = `<div class="apex-card apex-card--padded">
+    <div class="apex-bars">
+      ${weekVals.map((v) => {
+        const h = Math.max(4, Math.round(v * 0.6));
+        const cls = v >= 70 ? "apex-bar-fill--high" : v >= 30 ? "apex-bar-fill--mid" : "apex-bar-fill--low";
+        return `<div class="apex-bar-col">
+          <div class="apex-bar-fill ${cls}" style="height:${h}px"></div>
+          <span class="apex-bar-label"></span>
+        </div>`;
+      }).join("")}
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--dim)">
+      ${["M","T","W","T","F","S","S"].map((d) => `<span style="flex:1;text-align:center">${d}</span>`).join("")}
+    </div>
+  </div>`;
 
-  return screenLayout({
+  return apexLayout({
     title: "Train",
-    purpose: "Set your physique goal and log today’s lifts.",
+    lead: `Week ${state.programWeek} · ${programLabel}`,
     body: `
-      ${screenGroup("Physique goal", goalCard)}
-      ${screenGroup("Today's lifts", liftsCard)}`,
-    footer: !state.isPro
-      ? `<button class="btn btn-primary btn-block" type="button" data-action="sheet-paywall">Unlock full training</button>`
-      : "",
+      ${sessionHero}
+      ${apexLabel("Physique goal")}
+      ${chipsRow}
+      ${apexLabel("Lifts")}
+      ${liftsCard}
+      ${apexLabel("Week activity")}
+      ${weekBars}
+      ${!state.isPro ? `<button class="apex-btn apex-btn--block" type="button" data-action="sheet-paywall">Unlock full training</button>` : ""}`,
   });
 }
 
@@ -1323,56 +1584,67 @@ function disciplineView() {
   const day = ensureDay(iso);
   ensureDopamineMap(day);
   syncFocusGuideDismissed(state);
-  const showFocusGuide = !state.focusGuideDismissed;
 
-  const guardrails = state.dopamineRestrictions
+  const liveSec = liveFocusSeconds(day);
+  const targetSec = Math.max(1, day.focusTargetSec);
+  const pct = Math.min(100, Math.round((liveSec / targetSec) * 100));
+  const remaining = Math.max(0, targetSec - liveSec);
+  const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const ss = String(Math.floor(remaining % 60)).padStart(2, "0");
+  const sessionMin = Math.round(targetSec / 60);
+  const todayMin = Math.round(liveSec / 60);
+
+  const focusHero = `
+    <div class="apex-card apex-focus-card">
+      ${disciplineRing(pct, 210, 14, day.focusRunning ? "focusing" : "ready")}
+      <div class="apex-timer" id="focus-live-mmss">${mm}:${ss}</div>
+      <div class="apex-focus-actions">
+        <button type="button" class="apex-btn" data-action="focus-toggle">
+          ${day.focusRunning
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg> Pause'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7Z"/></svg> Start session'}
+        </button>
+        <button type="button" class="apex-btn apex-btn--ghost" data-action="focus-reset">Reset</button>
+      </div>
+      <div class="apex-focus-meta">
+        <span><b>${todayMin}m</b> today</span>
+        <span style="color:var(--dim)">·</span>
+        <span><b>${sessionMin}m</b> goal</span>
+      </div>
+    </div>`;
+
+  const guardrailRows = state.dopamineRestrictions
     .map(
       (dr) => `
-      <div class="app-list-row app-list-row--check guardrail-row">
-        <label class="checkbox-line checkbox-line--compact guardrail-row-main">
-          <input type="checkbox" data-dopamine="${escapeAttr(dr.id)}" ${day.dopamineById?.[dr.id] ? "checked" : ""} />
-          ${
-            state.isPro
-              ? `<input type="text" class="input-grow guardrail-label-input" value="${escapeHtml(dr.label)}" data-guardrail-label="${escapeAttr(dr.id)}" maxlength="72" aria-label="Guardrail name" />`
-              : `<span>${escapeHtml(dr.label)}</span>`
-          }
-        </label>
-        ${
-          state.isPro
-            ? `<button type="button" class="btn btn-danger btn-icon" data-action="del-rest" data-rest-id="${escapeAttr(dr.id)}" aria-label="Remove guardrail">${iconHtml("x", { size: ICON_SIZE, tone: "inherit" })}</button>`
-            : ""
-        }
-      </div>`
+      <label class="apex-check-row${day.dopamineById?.[dr.id] ? " is-done" : ""}">
+        <input type="checkbox" data-dopamine="${escapeAttr(dr.id)}" ${day.dopamineById?.[dr.id] ? "checked" : ""} style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" />
+        <span class="apex-check-icon">${day.dopamineById?.[dr.id] ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/></svg>'}</span>
+        <span class="apex-check-main">
+          ${state.isPro
+            ? `<input type="text" value="${escapeHtml(dr.label)}" data-guardrail-label="${escapeAttr(dr.id)}" maxlength="72" aria-label="Guardrail name" style="background:transparent;border:none;color:var(--text);font:inherit;width:100%;outline:none" />`
+            : `<span class="apex-check-title">${escapeHtml(dr.label)}</span>`}
+        </span>
+        <span class="apex-check-reward">+3 XP</span>
+      </label>`
     )
     .join("");
 
-  const guardrailsCard = listCard(guardrails || `<div class="app-list-pad">${skeletonPlaceholder(2, "row")}</div>`, true);
-  const freeFocusNote =
-    !state.isPro && day.freeFocusSessionUsed && !day.focusRunning
-      ? `<p class="focus-free-limit muted">You’ve used today’s free focus session. Upgrade for unlimited sessions.</p>`
-      : "";
+  const guardrailsCard = state.dopamineRestrictions.length
+    ? `<div class="apex-card">${guardrailRows}</div>`
+    : `<div class="apex-card apex-card--padded" style="text-align:center;color:var(--muted);font-size:13px">No guardrails yet.</div>`;
 
-  return screenLayout({
+  const proTail = state.isPro
+    ? `<button type="button" class="apex-btn apex-btn--ghost apex-btn--block" data-action="add-rest">+ Add guardrail</button>`
+    : `<button type="button" class="apex-btn apex-btn--block" data-action="sheet-paywall">Unlock custom guardrails</button>`;
+
+  return apexLayout({
     title: "Focus",
-    purpose: state.isPro
-      ? "Run your focus timer and mark guardrails you kept today."
-      : "Run your basic focus timer — one session per day on Free.",
+    lead: "One block at a time. Keep your guardrails.",
     body: `
-      ${screenGroup("Focus session", `${focusTimerCard(day, showFocusGuide)}${freeFocusNote}`)}
-      ${state.isPro ? screenGroup("Guardrails", guardrailsCard) : ""}`,
-    footer: `
-      <div class="focus-actions">
-        <button type="button" class="btn ${day.focusRunning ? "btn-secondary" : "btn-primary"} btn-block" data-action="focus-toggle">${day.focusRunning ? "Pause focus" : "Start focus"}</button>
-        <button type="button" class="btn btn-secondary btn-with-icon btn-block" data-action="focus-reset">
-          <span class="btn-icon-wrap" aria-hidden="true">${iconHtml("rotateCw", { size: ICON_SIZE, tone: "inherit" })}</span>
-          <span>Reset</span>
-        </button>
-      </div>
-      ${
-        state.isPro
-          ? `<button class="btn btn-secondary btn-with-icon btn-block" type="button" data-action="add-rest"><span class="btn-icon-wrap" aria-hidden="true">${iconHtml("plus", { size: ICON_SIZE, tone: "inherit" })}</span><span>Add guardrail</span></button>`
-          : `<button class="btn btn-primary btn-block" type="button" data-action="sheet-paywall">Unlock custom guardrails</button>`
-      }`,
+      ${focusHero}
+      ${state.isPro ? apexLabel("Guardrails") : ""}
+      ${state.isPro ? guardrailsCard : ""}
+      ${proTail}`,
   });
 }
 
@@ -1602,15 +1874,70 @@ function accountView() {
       ${settingsRow({ icon: "x", title: "Delete account", meta: "Erase all local data", action: "delete-account", danger: true })}
     </div>`;
 
-  return screenLayout({
+  const initialsApex = initials || (state.displayName ? state.displayName[0].toUpperCase() : "—");
+  const profileCardApex = `
+    <div class="apex-card apex-profile">
+      <div class="apex-avatar">${escapeHtml(initialsApex)}</div>
+      <div style="flex:1;min-width:0">
+        <input type="text" value="${escapeHtml(String(state.displayName ?? ""))}" maxlength="40" data-bind="display-name" placeholder="Your name" aria-label="Your name" autocomplete="name" style="background:transparent;border:none;color:var(--text);font-family:var(--font-heading);font-weight:700;font-size:20px;letter-spacing:-0.02em;outline:none;width:100%;padding:0" />
+        <div class="apex-profile-meta">
+          <span class="apex-rank-name">${escapeHtml(rank.label)}</span> · ${(state.xpTotal ?? 0).toLocaleString()} XP
+        </div>
+      </div>
+      <button type="button" class="apex-btn apex-btn--ghost" data-action="avatar-cycle" style="padding:8px 12px;font-size:12px">Icon</button>
+    </div>`;
+
+  // Rank progress (3 tiers)
+  const rankTiers = [
+    { key: "beginner", label: "BEGINNER", max: 500 },
+    { key: "pro", label: "PRO", max: 2500 },
+    { key: "elite", label: "ELITE", max: null },
+  ];
+  const xpTotalNum = state.xpTotal ?? 0;
+  const globalPct = rank.key === "beginner"
+    ? rankPct / 3
+    : rank.key === "pro"
+      ? 33 + rankPct / 3
+      : 66 + rankPct / 3;
+  const rankCard = `<div class="apex-card apex-card--padded">
+    <div class="apex-rank-tiers">
+      ${rankTiers.map((t) => `<span class="${t.key === rank.key ? "is-current" : ""}">${t.label}</span>`).join("")}
+    </div>
+    <div class="apex-rank-track"><div class="apex-rank-fill" style="width:${globalPct}%"></div></div>
+    <p class="apex-rank-hint">${rank.nextAt !== null
+      ? `You're <b style="color:var(--text);font-family:var(--font-mono)">${(rank.nextAt - xpTotalNum).toLocaleString()}</b> XP from <b style="color:var(--accent)">${rank.key === "beginner" ? "Pro" : "Elite"}</b>.`
+      : `You hit Elite. Now hold the line.`}</p>
+  </div>`;
+
+  // Badge grid (4-col)
+  const badgeCells = Array.from({ length: 8 }, (_, i) => {
+    const on = i < Math.min(unlockedCount, 8);
+    return `<div class="apex-badge${on ? " is-on" : ""}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 3h8l-3 7H11L8 3Z"/><circle cx="12" cy="15" r="6"/></svg></div>`;
+  }).join("");
+  const badgeGrid = `<div class="apex-badge-grid">${badgeCells}</div>`;
+
+  // Settings list (chevron rows)
+  const chev = '<svg class="apex-list-row-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  const settingsListApex = `<div class="apex-card">
+    <button type="button" class="apex-list-row" data-action="goto-settings"><span class="apex-list-row-label">Theme & appearance</span>${chev}</button>
+    <button type="button" class="apex-list-row" data-action="goto-habits"><span class="apex-list-row-label">Habits & guardrails</span>${chev}</button>
+    <button type="button" class="apex-list-row" data-action="goto-money"><span class="apex-list-row-label">Money tracking</span>${chev}</button>
+    <button type="button" class="apex-list-row" data-action="goto-achievements"><span class="apex-list-row-label">Badges</span><span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-right:8px;font-variant-numeric:tabular-nums">${unlockedCount}/${ACHIEVEMENTS.length}</span>${chev}</button>
+    <button type="button" class="apex-list-row" data-action="goto-privacy"><span class="apex-list-row-label">Privacy</span>${chev}</button>
+    <button type="button" class="apex-list-row" data-action="sheet-paywall"><span class="apex-list-row-label">${state.isPro ? "Pro · Active" : "Upgrade to Pro"}</span>${chev}</button>
+    <button type="button" class="apex-list-row apex-list-row--danger" data-action="sign-out"><span class="apex-list-row-label">Sign out</span>${chev}</button>
+  </div>`;
+
+  return apexLayout({
     title: "You",
-    purpose: "Profile, preferences, stats, and account controls.",
     body: `
-      ${screenGroup("Profile", profileBlock)}
-      ${screenGroup("App preferences", prefsList)}
-      ${screenGroup("Stats & achievements", statsList)}
-      ${screenGroup("Account", accountList)}`,
-    footer: `<button class="btn btn-primary btn-block" type="button" data-action="sheet-paywall">${state.isPro ? "View Pro benefits" : "Upgrade to Pro"}</button>`,
+      ${profileCardApex}
+      ${apexLabel("Rank progress")}
+      ${rankCard}
+      ${apexLabel(`Badges · ${unlockedCount}/${ACHIEVEMENTS.length}`, { actionLabel: "View all", actionAttr: 'data-action="goto-achievements"' })}
+      ${badgeGrid}
+      ${apexLabel("Settings")}
+      ${settingsListApex}`,
   });
 }
 
@@ -2601,8 +2928,11 @@ function render() {
                     : accountView();
 
   const nav = document.createElement("nav");
-  nav.className = "nav";
+  nav.className = "apex-nav";
   nav.setAttribute("aria-label", "Primary");
+  const navInner = document.createElement("div");
+  navInner.className = "apex-nav-inner";
+  nav.appendChild(navInner);
   if (view === "achievements") {
     state.achievementNotifiedCount = (state.achievementsUnlocked ?? []).length;
     saveState(state);
@@ -2612,7 +2942,7 @@ function render() {
 
   for (const { key, label } of NAV_ITEMS) {
     const b = navButton(key, label, key === "account" && unseenBadges > 0);
-    nav.appendChild(b);
+    navInner.appendChild(b);
   }
   attachNav(nav);
 

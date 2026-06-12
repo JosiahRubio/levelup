@@ -1,32 +1,40 @@
 :root {
-  --primary: #0f1117;
-  --secondary: #181b24;
-  --accent: #3b82f6;
+  /* Apex (dark) tokens — premium dark, sharp hierarchy */
+  --primary: #1c1f28;
+  --secondary: #262a35;
+  --accent: #6ec6ff;
+  --accent-strong: #a4dcff;
+  --accent-light: #8fd0ff;
   --gray-50: #f4f5f7;
   --gray-400: #9ca3af;
   --gray-600: #6b7280;
   --gray-800: #374151;
-  --bg: var(--primary);
-  --bg-elevated: var(--secondary);
-  --border: rgba(255, 255, 255, 0.06);
-  --text: #f3f4f6;
-  --muted: rgba(243, 244, 246, 0.62);
-  --accent-dim: rgba(59, 130, 246, 0.14);
-  --accent-border: rgba(59, 130, 246, 0.32);
-  --accent-strong: rgba(59, 130, 246, 0.5);
-  --accent-light: #60a5fa;
-  --btn-primary-top: rgba(96, 165, 250, 0.2);
-  --btn-primary-bottom: rgba(59, 130, 246, 0.12);
-  --nav-bg: rgba(15, 17, 23, 0.92);
-  --sheet-bg: #141820;
-  --surface-inset: rgba(255, 255, 255, 0.04);
-  --surface-hover: rgba(59, 130, 246, 0.1);
-  --progress-track: rgba(255, 255, 255, 0.08);
-  --success: #22c55e;
-  --danger: #ef4444;
-  --danger-dim: rgba(239, 68, 68, 0.14);
-  --danger-border: rgba(239, 68, 68, 0.4);
-  --danger-pressed: rgba(239, 68, 68, 0.22);
+  --bg: #1c1f28;
+  --bg-elevated: #262a35;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #f4f6fa;
+  --muted: rgba(244, 246, 250, 0.62);
+  --dim: rgba(244, 246, 250, 0.42);
+  --accent-dim: rgba(110, 198, 255, 0.14);
+  --accent-border: rgba(110, 198, 255, 0.28);
+  --on-accent: #0b0c10;
+  --btn-primary-top: rgba(164, 220, 255, 0.22);
+  --btn-primary-bottom: rgba(110, 198, 255, 0.12);
+  --nav-bg: rgba(28, 31, 40, 0.92);
+  --sheet-bg: #262a35;
+  --surface-inset: rgba(255, 255, 255, 0.05);
+  --surface-hover: rgba(110, 198, 255, 0.1);
+  --progress-track: rgba(255, 255, 255, 0.06);
+  --tint: rgba(255, 255, 255, 0.05);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.1);
+  --flame: #ffb35c;
+  --flame-soft: rgba(255, 179, 92, 0.14);
+  --danger: #f87171;
+  --danger-dim: rgba(248, 113, 113, 0.14);
+  --danger-border: rgba(248, 113, 113, 0.4);
+  --danger-pressed: rgba(248, 113, 113, 0.22);
   --icon-size: 22px;
   --icon-size-lg: 24px;
   --warning: #f59e0b;
@@ -36,14 +44,16 @@
   --shadow-nav: 0 -4px 24px rgba(0, 0, 0, 0.18);
   --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --text-size-lg: 1.375rem;
   --text-size-sm: 0.875rem;
   --btn-height: 44px;
   --radius-sm: 12px;
   --radius: 14px;
-  --radius-lg: 16px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --space: 16px;
-  --section-gap: 24px;
+  --section-gap: 20px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -3369,4 +3379,806 @@ textarea {
 
 .inbox-empty p {
   margin: 4px 0;
+}
+
+/* ============================================================
+   APEX DESIGN SYSTEM
+   Premium dark, sharp hierarchy, athletic. Discipline ring hero.
+   ============================================================ */
+
+/* Apex top strip — LevelUp + bolt, day label, streak chip, bell */
+.apex-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  margin-bottom: 4px;
+}
+
+.apex-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apex-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.apex-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
+}
+
+.apex-brand-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.apex-brand-day {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.apex-strip-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apex-streak-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--flame-soft);
+  color: var(--flame);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section labels — uppercase, letter-spaced, tiny */
+.apex-section-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.apex-section-label-text {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.apex-section-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Cards — surface with subtle inset border, large rounding */
+.apex-card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+
+.apex-card--padded {
+  padding: 16px;
+}
+
+/* Page heading */
+.apex-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 4px;
+}
+
+.apex-heading h1 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0;
+}
+
+.apex-heading-lead {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Home greeting */
+.apex-greeting-hello {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.apex-greeting-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 32px;
+  letter-spacing: -0.035em;
+  color: var(--text);
+  margin: 2px 0 0;
+}
+
+/* Hero card — ring + streak + xp */
+.apex-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 20px 16px;
+}
+
+.apex-hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.apex-streak-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 64px;
+  line-height: 0.95;
+  color: var(--text);
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-streak-flame {
+  color: var(--flame);
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.apex-streak-sub {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.apex-xp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.apex-xp-rank {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apex-xp-numbers {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-xp-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--progress-track);
+  overflow: hidden;
+}
+
+.apex-xp-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 400ms ease;
+}
+
+/* Discipline ring */
+.apex-ring {
+  position: relative;
+  display: inline-flex;
+}
+
+.apex-ring-svg {
+  transform: rotate(-90deg);
+}
+
+.apex-ring-track {
+  fill: none;
+  stroke: var(--progress-track);
+}
+
+.apex-ring-progress {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dasharray 700ms cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+
+.apex-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.apex-ring-pct {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 56px;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.apex-ring-pct-small {
+  font-size: 22px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.apex-ring-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.apex-ring--medium .apex-ring-pct {
+  font-size: 38px;
+}
+.apex-ring--medium .apex-ring-pct-small {
+  font-size: 14px;
+}
+
+/* Quick stat tiles (4-col grid) */
+.apex-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.apex-stat-tile {
+  background: var(--bg-elevated);
+  border-radius: 14px;
+  padding: 12px 10px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.apex-stat-value {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-stat-value--ok {
+  color: var(--success);
+}
+
+.apex-stat-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--dim);
+}
+
+.apex-stat-label {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Checklist rows */
+.apex-checklist {
+  display: flex;
+  flex-direction: column;
+}
+
+.apex-check-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.apex-check-row--last,
+.apex-check-row:last-child {
+  border-bottom: none;
+}
+
+.apex-check-row--compact {
+  padding: 12px 14px;
+}
+
+.apex-check-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--tint);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.apex-check-row.is-done .apex-check-icon {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.apex-check-row.is-done .apex-check-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.apex-check-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apex-check-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.apex-check-sub {
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.apex-check-reward {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--tint);
+}
+
+.apex-check-row.is-done .apex-check-reward {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+/* Apex bottom nav — pill row with accent-soft active */
+.apex-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 8px calc(34px + var(--safe-bottom));
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+  z-index: 30;
+}
+
+.apex-nav-inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  background: var(--bg-elevated);
+  border-radius: 22px;
+  padding: 6px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.apex-nav-btn {
+  padding: 8px 2px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 200ms, color 200ms;
+  font-family: var(--font-body);
+}
+
+.apex-nav-btn[aria-current="page"] {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.apex-nav-btn-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.apex-nav-btn-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.apex-nav-btn[aria-current="page"] .apex-nav-btn-label {
+  font-weight: 600;
+}
+
+/* Apex profile card / badge grid */
+.apex-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.apex-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 22px;
+}
+
+.apex-profile-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.apex-profile-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.apex-profile-meta .apex-rank-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.apex-rank-tiers {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-rank-tiers .is-current {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.apex-rank-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--progress-track);
+  overflow: hidden;
+  position: relative;
+}
+
+.apex-rank-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.apex-rank-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.apex-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.apex-badge {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 1px var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+}
+
+.apex-badge.is-on {
+  background: var(--accent-dim);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+/* Settings list row (used in You/account) */
+.apex-list-row {
+  display: flex;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font-body);
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.apex-list-row:last-child {
+  border-bottom: none;
+}
+
+.apex-list-row-label {
+  flex: 1;
+}
+
+.apex-list-row-chev {
+  color: var(--dim);
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.apex-list-row--danger {
+  color: var(--danger);
+}
+
+/* Focus / Train misc */
+.apex-focus-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 16px 20px;
+}
+
+.apex-timer {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 36px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.apex-focus-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.apex-focus-meta {
+  display: flex;
+  gap: 18px;
+  padding-top: 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.apex-focus-meta b {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Train hero session card */
+.apex-train-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 18px;
+}
+
+.apex-train-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apex-train-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--text);
+  margin-top: 4px;
+  letter-spacing: -0.02em;
+}
+
+.apex-train-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.apex-train-meta b {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+/* Week activity bars (Train) */
+.apex-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  height: 80px;
+}
+
+.apex-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.apex-bar-fill {
+  width: 100%;
+  border-radius: 4px;
+  background: var(--progress-track);
+}
+
+.apex-bar-fill--low {
+  background: var(--progress-track);
+}
+
+.apex-bar-fill--mid {
+  background: var(--accent-dim);
+}
+
+.apex-bar-fill--high {
+  background: var(--accent);
+}
+
+.apex-bar-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--dim);
+}
+
+/* Apex button — primary on-accent */
+.apex-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.apex-btn--block {
+  width: 100%;
+  justify-content: center;
+}
+
+.apex-btn--ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  font-weight: 500;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+/* Page screen body padding for Apex */
+.apex-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 0 128px;
+}
+
+/* Quests input row */
+.apex-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.apex-input-row input {
+  flex: 1;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+}
+
+.apex-input-row input:focus {
+  border-color: var(--accent-border);
+}
+
+/* Adjust page-strip wrapping to fall through to Apex strip in main shell */
+body {
+  background: var(--bg);
 }
