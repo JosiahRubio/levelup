@@ -1513,7 +1513,7 @@ function trainView() {
             : `<span class="apex-check-title">${escapeHtml(ex.name ?? "")}</span>`}
         </span>
         <span style="display:inline-flex;gap:6px;align-items:center;font-family:var(--font-mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums">
-          <input ${dis} type="number" step="0.25" min="0" inputmode="decimal" value="${Number(ex.weight) !== 0 ? ex.weight : ""}" data-ex-part="kg" data-ex="${idx}" placeholder="kg" style="width:56px;height:32px;border-radius:8px;background:var(--surface-inset);border:1px solid var(--border);color:var(--text);text-align:center;font:inherit;outline:none" />
+          <input ${dis} type="number" step="2.5" min="0" inputmode="decimal" value="${Number(ex.weight) !== 0 ? ex.weight : ""}" data-ex-part="kg" data-ex="${idx}" placeholder="lbs" style="width:56px;height:32px;border-radius:8px;background:var(--surface-inset);border:1px solid var(--border);color:var(--text);text-align:center;font:inherit;outline:none" />
           <span>·</span>
           <input ${dis} type="number" min="1" max="100" step="1" value="${Number(ex.reps) !== 0 ? ex.reps : ""}" data-ex-part="reps" data-ex="${idx}" placeholder="reps" style="width:48px;height:32px;border-radius:8px;background:var(--surface-inset);border:1px solid var(--border);color:var(--text);text-align:center;font:inherit;outline:none" />
         </span>
